@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+{% block title %}Predict Playground — ShroomSense{% endblock %}
+{% block content %}
+<h1 style="margin:0">Predict playground</h1>
+<p style="color:var(--muted)">Random real rows from <b>train.csv</b> → live model prediction with actual vs predicted, confidence and batch accuracy. Plus a custom mushroom builder below.</p>
+
+<div class="card">
+  <form method="get" action="/playground" style="display:flex;gap:10px;align-items:end;flex-wrap:wrap">
+    <div><label>Rows per draw</label>
+      <select name="n">
+        {% for opt in [3,5,8,12,20] %}<option value="{{ opt }}" {{ 'selected' if n==opt else '' }}>{{ opt }}</option>{% endfor %}
+      </select></div>
+    <input type="hidden" name="action" value="sample">
+    <button class="btn btn-primary" type="submit">Draw random rows & predict</button>
+    {% if batch_acc is not none %}<span class="badge {{ 'badge-ok' if batch_acc==1.0 else 'badge-e' }}">Batch accuracy: {{ batch_acc }} ({{ results|selectattr('correct')|list|length }}/{{ results|length }})</span>{% endif %}
+  </form>
+</div>
+
+{% if error %}<div class="card"><b style="color:var(--red)">{{ error }}</b></div>{% endif %}
+
+{% if results %}
+<div class="card">
+  <h3>Random sample predictions (n={{ results|length }})</h3>
+  <p class="sub">Green = correct · Red = wrong. Confidence = RandomForest predicted-class probability.</p>
+  <div class="table-wrap"><table>
+    <thead><tr><th>#</th><th>Cap</th><th>Odor</th><th>Gill</th><th>Stalk</th><th>Spore</th><th>Pop / Hab</th><th>Actual</th><th>Predicted</th><th>Conf</th><th>✓</th></tr></thead>
+    <tbody>
+    {% for r in results %}
+      <tr>
+        <td>{{ loop.index }}</td>
+        <td>{{ r.features['cap-shape'] }}/{{ r.features['cap-surface'] }}/{{ r.features['cap-color'] }}</td>
+        <td>{{ r.features['odor'] }}</td>
+        <td>{{ r.features['gill-size'] }}/{{ r.features['gill-color'] }}</td>
+        <td>{{ r.features['stalk-shape'] }}</td>
+        <td>{{ r.features['spore-print-color'] }}</td>
+        <td>{{ r.features['population'] }}/{{ r.features['habitat'] }}</td>
+        <td><span class="badge {{ 'badge-e' if r.actual=='e' else 'badge-p' }}">{{ r.actual }}</span></td>
+        <td><span class="badge {{ 'badge-e' if r.predicted=='e' else 'badge-p' }}">{{ r.predicted }}</span></td>
+        <td>{{ r.confidence if r.confidence is not none else '-' }}</td>
+        <td><span class="badge {{ 'badge-ok' if r.correct else 'badge-bad' }}">{{ '✓' if r.correct else '✗' }}</span></td>
+      </tr>
+      <tr><td></td><td colspan="10" style="color:var(--muted);font-size:.78rem">bruises={{ r.full_row.get('bruises') }} · n_bruises={{ r.full_row.get('number_of_bruises') }} · gill-spacing={{ r.full_row.get('gill-spacing') }} · stalk-root={{ r.full_row.get('stalk-root') }} · ring={{ r.full_row.get('ring-number') }}/{{ r.full_row.get('ring-type') }} · veil={{ r.full_row.get('veil-type') }}/{{ r.full_row.get('veil-color') }}</td></tr>
+    {% endfor %}
+    </tbody>
+  </table></div>
+</div>
+{% endif %}
+
+<div class="card">
+  <h3>Custom mushroom predictor</h3>
+  <p class="sub">Pick feature values (options come from real train data) and run the model.</p>
+  <form method="post" action="/playground">
+    <div class="form-grid">
+      {% for col, vals in eda.options.items() %}
+      <div><label>{{ col }}</label>
+        <select name="{{ col }}">
+          {% for v in vals %}<option value="{{ v }}">{{ v }}</option>{% endfor %}
+        </select></div>
+      {% endfor %}
+      <div><label>number_of_bruises</label><input type="number" name="number_of_bruises" value="5" min="0" max="30"></div>
+    </div>
+    <div style="margin-top:14px"><button class="btn btn-primary" type="submit" name="custom_submit" value="1">Predict my mushroom</button></div>
+  </form>
+  {% if custom %}
+  <div class="kv" style="margin-top:12px"><span>Predicted class</span><span class="badge {{ 'badge-e' if custom.predicted=='e' else 'badge-p' }}">{{ custom.predicted }} {{ '(edible)' if custom.predicted=='e' else '(poisonous)' }}</span></div>
+  <div class="kv"><span>Confidence</span><b>{{ custom.confidence if custom.confidence is not none else '-' }}</b></div>
+  {% endif %}
+</div>
+{% endblock %}

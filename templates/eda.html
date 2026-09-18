@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+{% block title %}Data Visuals — ShroomSense{% endblock %}
+{% block content %}
+<h1 style="margin:0">Training-data visual analytics</h1>
+<p style="color:var(--muted)">{{ eda.n_rows }} rows · {{ eda.n_features }} features · target <span class="badge badge-e">e</span> <span class="badge badge-p">p</span> · {{ eda.missing_total }} missing cells</p>
+
+<div class="grid2">
+  <div class="card"><h3>Class balance</h3><p class="sub">Edible vs poisonous in train.csv</p><canvas id="cBalance"></canvas></div>
+  <div class="card"><h3>Number of bruises (binned)</h3><p class="sub">Overall distribution of bruise counts</p><canvas id="cBruise"></canvas></div>
+</div>
+
+<div class="card"><h3>Bruises by class</h3><p class="sub">Do bruised mushrooms skew edible or poisonous?</p><canvas id="cBruiseClass"></canvas></div>
+
+<div class="grid2">
+  <div class="card"><h3>Odor × class</h3><p class="sub">Strongest single signal — stacked by class</p><canvas id="cOdor"></canvas></div>
+  <div class="card"><h3>Gill size × class</h3><p class="sub">Broad vs narrow gills</p><canvas id="cGill"></canvas></div>
+</div>
+
+<div class="grid2">
+  <div class="card"><h3>Population × class</h3><p class="sub">How mushrooms grow together</p><canvas id="cPop"></canvas></div>
+  <div class="card"><h3>Habitat × class</h3><p class="sub">Woods, grasses, paths, urban, waste</p><canvas id="cHab"></canvas></div>
+</div>
+
+<div class="grid2">
+  <div class="card"><h3>Spore print color × class</h3><p class="sub">Classic mycology feature</p><canvas id="cSpore"></canvas></div>
+  <div class="card"><h3>Cap color × class</h3><p class="sub">Color is weak alone — needs context</p><canvas id="cCap"></canvas></div>
+</div>
+
+<div class="card"><h3>Top RandomForest feature importances</h3><p class="sub">One-hot expanded names — what the model actually splits on</p><canvas id="cImp"></canvas>
+  <div class="pill-row">{% for f in eda.importances %}<span class="badge badge-e">{{ f.feature }} · {{ f.importance }}</span>{% endfor %}</div>
+</div>
+
+<div class="grid2">
+{% for feat, d in eda.cat_dist.items() %}
+  <div class="card"><h3>{{ feat }}</h3><p class="sub">Top categories</p><canvas id="cat-{{ loop.index }}"></canvas></div>
+{% endfor %}
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+const E = {{ eda | tojson }};
+Chart.defaults.color = '#d7e3d8';
+function bar(id, labels, datasets, stacked=false, horizontal=false) {
+  const el = document.getElementById(id); if (!el) return;
+  new Chart(el, { type: 'bar',
+    data: { labels, datasets },
+    options: { indexAxis: horizontal ? 'y' : 'x',
+      scales: { x: { stacked }, y: { stacked } },
+      plugins: { legend: { position: 'bottom' } } } });
+}
+function stackedData(key, colors) {
+  const t = E.crosstabs[key];
+  return { labels: t.labels,
+    datasets: t.classes.map((c, i) => ({ label: c === 'e' ? 'edible (e)' : 'poisonous (p)',
+      data: t.counts[c], backgroundColor: colors[i] })) };
+}
+bar('cBalance', Object.keys(E.class_counts),
+  [{ label: 'count', data: Object.values(E.class_counts), backgroundColor: ['#34d399','#f87171'] }]);
+bar('cBruise', E.hist_labels, [{ label: 'mushrooms', data: E.hist_all, backgroundColor: '#60a5fa' }]);
+(function(){ const el = document.getElementById('cBruiseClass'); if(!el) return;
+  new Chart(el, { type: 'bar', data: { labels: E.hist_labels, datasets: [
+    { label: 'edible (e)', data: E.hist_by_class.e || [], backgroundColor: '#34d399' },
+    { label: 'poisonous (p)', data: E.hist_by_class.p || [], backgroundColor: '#f87171' } ] },
+    options: { scales: { x: { stacked: true }, y: { stacked: true } } } }); })();
+let s = stackedData('odor', ['#34d399','#f87171']); bar('cOdor', s.labels, s.datasets, true);
+s = stackedData('gill-size', ['#34d399','#f87171']); bar('cGill', s.labels, s.datasets);
+s = stackedData('population', ['#34d399','#f87171']); bar('cPop', s.labels, s.datasets, true);
+s = stackedData('habitat', ['#34d399','#f87171']); bar('cHab', s.labels, s.datasets, true);
+s = stackedData('spore-print-color', ['#34d399','#f87171']); bar('cSpore', s.labels, s.datasets, true);
+s = stackedData('cap-color', ['#34d399','#f87171']); bar('cCap', s.labels, s.datasets, true);
+(function(){ const el = document.getElementById('cImp'); if(!el || !E.importances.length) return;
+  new Chart(el, { type: 'bar',
+    data: { labels: E.importances.map(x => x.feature),
+      datasets: [{ label: 'importance', data: E.importances.map(x => x.importance), backgroundColor: '#a3e635' }] },
+    options: { indexAxis: 'y', plugins: { legend: { display: false } } } }); })();
+// per-feature distributions
+const cats = {{ eda.cat_dist | tojson }};
+Object.keys(cats).forEach((k, idx) => {
+  const id = 'cat-' + (idx + 1);
+  const el = document.getElementById(id); if (!el) return;
+  el.closest('.card').querySelector('h3').textContent = k + ' — distribution';
+  new Chart(el, { type: 'bar',
+    data: { labels: cats[k].labels, datasets: [{ data: cats[k].counts, backgroundColor: '#22d3ee' }] },
+    options: { plugins: { legend: { display: false } } } });
+});
+</script>
+{% endblock %}

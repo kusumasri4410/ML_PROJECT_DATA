@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block title %}Model Metrics — ShroomSense{% endblock %}
+{% block content %}
+<h1 style="margin:0">Training & validation metrics</h1>
+<p style="color:var(--muted)">RandomForest {{ metrics.model_params | tojson }} · labels {{ metrics.labels | tojson }}</p>
+
+<div class="stat-grid">
+  <div class="stat"><div class="k">Val accuracy</div><div class="v">{{ metrics.val_metrics.accuracy }}</div></div>
+  <div class="stat"><div class="k">Val precision</div><div class="v">{{ metrics.val_metrics.precision }}</div></div>
+  <div class="stat"><div class="k">Val recall</div><div class="v">{{ metrics.val_metrics.recall }}</div></div>
+  <div class="stat"><div class="k">Val F1 score</div><div class="v" style="color:var(--lime)">{{ metrics.val_metrics.f1_score }}</div></div>
+</div>
+
+<div class="grid2">
+  <div class="card"><h3>Train vs validation</h3><p class="sub">Accuracy, precision, recall, F1 side by side</p><canvas id="mChart"></canvas></div>
+  <div class="card"><h3>Confusion matrix (validation)</h3><p class="sub">Rows = actual, columns = predicted</p>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Actual \ Pred</th>{% for l in metrics.labels %}<th>{{ l }}</th>{% endfor %}</tr></thead>
+      <tbody>{% for row in metrics.confusion_matrix %}<tr><th>{{ metrics.labels[loop.index0] }}</th>{% for v in row %}<td><b>{{ v }}</b></td>{% endfor %}</tr>{% endfor %}</tbody>
+    </table></div>
+    <div style="margin-top:12px"><canvas id="cmChart"></canvas></div>
+  </div>
+</div>
+
+<div class="card"><h3>Classification report (validation)</h3><p class="sub">Per-class precision, recall, F1 plus macro / weighted averages</p>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Class</th><th>Precision</th><th>Recall</th><th>F1</th><th>Support</th></tr></thead>
+    <tbody>
+    {% for k, v in metrics.classification_report.items() %}
+      {% if v is mapping and 'precision' in v %}
+      <tr><td><span class="badge {{ 'badge-e' if k=='e' else 'badge-p' }}">{{ k }}</span></td>
+        <td>{{ v.precision }}</td><td>{{ v.recall }}</td><td><b>{{ v['f1-score'] }}</b></td><td>{{ v.support }}</td></tr>
+      {% endif %}
+    {% endfor %}
+    </tbody>
+  </table></div>
+  <div class="kv"><span>Overall accuracy</span><b>{{ metrics.classification_report.accuracy }}</b></div>
+</div>
+
+<div class="card"><h3>Hyperparameters</h3><pre style="background:#0d1812;padding:14px;border-radius:10px;overflow:auto">{{ metrics.model_params | tojson(indent=2) }}</pre></div>
+{% endblock %}
+{% block scripts %}
+<script>
+const M = {{ metrics | tojson }};
+Chart.defaults.color = '#d7e3d8';
+new Chart(document.getElementById('mChart'), { type: 'bar',
+  data: { labels: ['Accuracy','Precision','Recall','F1'],
+    datasets: [
+      { label: 'Train', data: [M.train_metrics.accuracy, M.train_metrics.precision, M.train_metrics.recall, M.train_metrics.f1_score], backgroundColor: '#34d399' },
+      { label: 'Validation', data: [M.val_metrics.accuracy, M.val_metrics.precision, M.val_metrics.recall, M.val_metrics.f1_score], backgroundColor: '#f472b6' } ] },
+  options: { scales: { y: { min: 0, max: 1 } } } });
+(function(){ const cm = M.confusion_matrix.flat(); const el = document.getElementById('cmChart'); if(!el) return;
+  new Chart(el, { type: 'bar', data: { labels: ['e→e','e→p','p→e','p→p'], datasets: [{ data: cm, backgroundColor: ['#34d399','#f87171','#f87171','#34d399'] }] },
+    options: { plugins: { legend: { display: false } } } }); })();
+</script>
+{% endblock %}

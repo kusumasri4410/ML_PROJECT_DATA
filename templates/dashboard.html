@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Model Performance Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; background-color: #f4f6f9; margin: 30px; }
+        .container { max-width: 900px; margin: auto; }
+        .card { background: white; padding: 20px; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: center; }
+        th { background-color: #007bff; color: white; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h2>Model Metrics & Performance Visualizations</h2>
+    
+    <!-- Parameters Card -->
+    <div class="card">
+        <h3>Hyperparameters Used</h3>
+        <pre>{{ metrics.model_params | tojson(indent=2) }}</pre>
+    </div>
+
+    <!-- Chart Row -->
+    <div class="grid">
+        <div class="card">
+            <h3>Train vs Validation Metrics</h3>
+            <canvas id="metricsChart"></canvas>
+        </div>
+        <div class="card">
+            <h3>Confusion Matrix (Validation)</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Actual \ Predicted</th>
+                        {% for label in metrics.labels %}
+                            <th>{{ label }}</th>
+                        {% endfor %}
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in metrics.confusion_matrix %}
+                    <tr>
+                        <th>{{ metrics.labels[loop.index0] }}</th>
+                        {% for val in row %}
+                            <td>{{ val }}</td>
+                        {% endfor %}
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+const metricsData = JSON.parse('{{ metrics | tojson | safe }}');
+    
+    // Train vs Validation Bar Chart
+    const ctx = document.getElementById('metricsChart').getContext('2d');
+    new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: ['Accuracy', 'Precision', 'Recall', 'F1 Score'],
+            datasets: [
+                {
+                    label: 'Train Set',
+                    data: [
+                        metricsData.train_metrics.accuracy,
+                        metricsData.train_metrics.precision,
+                        metricsData.train_metrics.recall,
+                        metricsData.train_metrics.f1_score
+                    ],
+                    backgroundColor: 'rgba(54, 162, 235, 0.7)'
+                },
+                {
+                    label: 'Validation Set',
+                    data: [
+                        metricsData.val_metrics.accuracy,
+                        metricsData.val_metrics.precision,
+                        metricsData.val_metrics.recall,
+                        metricsData.val_metrics.f1_score
+                    ],
+                    backgroundColor: 'rgba(255, 99, 132, 0.7)'
+                }
+            ]
+        },
+        options: {
+            scales: { y: { min: 0, max: 1 } }
+        }
+    });
+</script>
+</body>
+</html>

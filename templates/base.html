@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% block title %}ShroomSense — Mushroom Classification{% endblock %}</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+</head>
+<body>
+<nav class="nav">
+  <div class="nav-inner">
+    <div class="brand"><div class="brand-mark">S</div> ShroomSense</div>
+    <div class="nav-links">
+      <a href="/" class="{{ 'active' if request.path=='/' else '' }}">Home</a>
+      <a href="/eda" class="{{ 'active' if request.path=='/eda' else '' }}">Data Visuals</a>
+      <a href="/metrics" class="{{ 'active' if request.path=='/metrics' else '' }}">Model Metrics</a>
+      <a href="/playground" class="{{ 'active' if request.path=='/playground' else '' }}">Predict Playground</a>
+    </div>
+  </div>
+</nav>
+<div class="container">
+{% block content %}{% endblock %}
+</div>
+<div class="footer">ShroomSense · RandomForest mushroom classifier · Flask + scikit-learn · train.csv → model.pkl</div>
+{% block scripts %}{% endblock %}
+</body>
+</html>

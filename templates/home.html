@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block title %}ShroomSense — Home{% endblock %}
+{% block content %}
+<div class="hero">
+  <div>
+    <span class="badge badge-e">Edible (e) vs Poisonous (p) · RandomForest</span>
+    <h1>Know your mushroom <span>before you touch it.</span></h1>
+    <p>ShroomSense is a data-science web app that learns from <b>{{ eda.n_rows or 7000 }} mushroom records</b>
+    across cap, gill, stalk, veil, ring, spore and habitat features. Explore rich visual analytics,
+    inspect precision / recall / F1 and confusion-matrix performance, then test the live model on
+    random real rows from the training set or your own custom mushroom.</p>
+    <div class="btn-row">
+      <a class="btn btn-primary" href="/eda">Explore data visuals</a>
+      <a class="btn btn-ghost" href="/metrics">View model metrics</a>
+      <a class="btn btn-ghost" href="/playground">Try live predictions</a>
+    </div>
+    <div class="stat-grid">
+      <div class="stat"><div class="k">Records</div><div class="v">{{ eda.n_rows }}</div></div>
+      <div class="stat"><div class="k">Features</div><div class="v">{{ eda.n_features }}</div></div>
+      <div class="stat"><div class="k">Edible (e)</div><div class="v" style="color:var(--green)">{{ eda.class_counts.get('e', '-') }}</div></div>
+      <div class="stat"><div class="k">Poisonous (p)</div><div class="v" style="color:var(--red)">{{ eda.class_counts.get('p', '-') }}</div></div>
+    </div>
+  </div>
+  <div>
+    <div class="card" style="margin-top:0">
+      <h3>Validation score</h3>
+      <p class="sub">Held-out 20% split from training</p>
+      <div class="kv"><span>Accuracy</span><b>{{ val_metrics.get('accuracy', '-') }}</b></div>
+      <div class="kv"><span>Precision (weighted)</span><b>{{ val_metrics.get('precision', '-') }}</b></div>
+      <div class="kv"><span>Recall (weighted)</span><b>{{ val_metrics.get('recall', '-') }}</b></div>
+      <div class="kv"><span>F1 score (weighted)</span><b>{{ val_metrics.get('f1_score', '-') }}</b></div>
+      <div style="margin-top:12px"><canvas id="homeClassChart"></canvas></div>
+    </div>
+  </div>
+</div>
+
+<div class="grid3">
+  <div class="card"><h3>1 · Visualise</h3><p class="sub">Class balance, odor / gill / habitat splits, bruise histograms, cross-feature stacked bars and RandomForest feature importances.</p><a href="/eda">Open Data Visuals →</a></div>
+  <div class="card"><h3>2 · Validate</h3><p class="sub">Train vs validation accuracy, precision, recall, F1, full classification report and confusion matrix with charts.</p><a href="/metrics">Open Model Metrics →</a></div>
+  <div class="card"><h3>3 · Predict</h3><p class="sub">Draw N random rows from train.csv, see actual vs predicted with confidence and batch accuracy — plus a custom mushroom form.</p><a href="/playground">Open Playground →</a></div>
+</div>
+
+<div class="card">
+  <h3>How it works</h3>
+  <p class="sub">Pipeline: categorical one-hot + median imputation → RandomForest (100 trees). Target <span class="badge badge-e">e = edible</span> <span class="badge badge-p">p = poisonous</span>. Key signals the model leans on: odor, gill-size, spore-print-color, bruising, stalk shape and habitat — all visualised on the EDA page.</p>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+const eda = {{ eda | tojson }};
+const ctx = document.getElementById('homeClassChart');
+if (ctx && eda.class_counts) {
+  new Chart(ctx, { type: 'doughnut',
+    data: { labels: Object.keys(eda.class_counts),
+      datasets: [{ data: Object.values(eda.class_counts),
+        backgroundColor: ['#34d399','#f87171'] }] },
+    options: { plugins: { legend: { labels: { color: '#eef4ee' } } } } });
+}
+</script>
+{% endblock %}
